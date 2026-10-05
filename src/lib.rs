@@ -1,0 +1,59 @@
+// TPT Vibration Analyzer — free in-browser edition.
+//
+// Hub contract (web repo `WasmAppRunner`):
+//   1. the runner dynamic-imports the wasm-bindgen `--target web` glue,
+//   2. awaits its default export (wasm init),
+//   3. calls the named export `mount(container)` with the hub's container div.
+//
+// Standalone dev (trunk serve) uses the same `mount_app` via the
+// `#tpt-appfront-root` marker div that only index.html provides, so the two
+// hosts never double-mount.
+
+// The DOM app compiles only for wasm32 (tpt-appfront-dom is an empty crate
+// on other targets); the engine stays target-independent and host-testable.
+#[cfg(target_arch = "wasm32")]
+mod app;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+/// Hub entry point: mounted into the /tools/vibration-analyzer page's container.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn mount(container: web_sys::Element) -> Result<(), JsValue> {
+    console_error_panic_hook::set_once();
+    app::mount_app(&container)
+}
+
+/// Standalone entry (trunk serve): index.html provides `#tpt-appfront-root`;
+/// the hub page does not, so this is a no-op when embedded.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub fn start() -> Result<(), JsValue> {
+    console_error_panic_hook::set_once();
+    let window = web_sys::window().expect("no window");
+    let document = window.document().expect("no document");
+    if let Some(root) = document.get_element_by_id("tpt-appfront-root") {
+        app::mount_app(&root)?;
+    }
+    Ok(())
+}
+
+/// Inserts `<style id>` into `document.head` once (re-inserting on hot
+/// reload). Shared by the app's style blocks.
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn upsert_style(document: &web_sys::Document, id: &str, css: &str) {
+    use wasm_bindgen::JsCast;
+    if let Some(existing) = document.get_element_by_id(id) {
+        let _ = existing.remove();
+    }
+    if let Some(head) = document.head() {
+        if let Ok(style) = document.create_element("style") {
+            let _ = style.set_attribute("id", id);
+            let _ = style.set_attribute("type", "text/css");
+            let _ = style.set_text_content(Some(css));
+            let _ = head.append_child(&style);
+            let _ = style.dyn_into::<web_sys::HtmlElement>();
+        }
+    }
+}

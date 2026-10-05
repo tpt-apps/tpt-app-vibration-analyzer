@@ -1,0 +1,15 @@
+[package]
+name = "tpt-vibration-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Vibration analysis adapter: raw accelerometer time series in → FFT spectrum, fault-signature scores (bearing/imbalance/misalignment) out as plain structs. Pure Rust, no UI deps, host-unit-testable."
+publish = false
+
+[features]
+default = []
+# Pro edition capabilities: fault-signature detection (bearing/imbalance/
+# misalignment) and the maintenance-report writer. Compiled out of the free
+# WASM build to keep the payload small and the paid features paid.
+pro = []
+
+[dependencies]
