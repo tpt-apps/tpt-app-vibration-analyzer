@@ -474,10 +474,13 @@ fn shell_tree() -> UITree<Msg> {
             header.container(|group| {
                 group.container(|row| {
                     row.heading(2, "TPT Vibration Analyzer");
-                    #[cfg(not(feature = "pro"))]
-                    row.text("Free edition").class("vib-chip");
-                    #[cfg(feature = "pro")]
-                    row.text("Pro").class("vib-chip");
+                    // Text nodes can't carry a class — the chip label goes
+                    // through a one-child container so `.vib-chip` applies.
+                    let chip = if cfg!(feature = "pro") { "Pro" } else { "Free edition" };
+                    row.container(|c| {
+                        c.text(chip);
+                    })
+                    .class("vib-chip");
                 })
                 .class("vib-title-row");
                 group.text("FFT spectrum of an uploaded vibration recording — analyzed locally, nothing is uploaded.")

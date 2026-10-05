@@ -13,16 +13,6 @@ pub fn hann(n: usize) -> Vec<f64> {
         .collect()
 }
 
-/// Coherent gain of a window: mean of its coefficients. Dividing an FFT
-/// magnitude by this compensates the window's amplitude reduction so tone
-/// amplitudes read in true engineering units.
-pub fn coherent_gain(w: &[f64]) -> f64 {
-    if w.is_empty() {
-        return 1.0;
-    }
-    w.iter().sum::<f64>() / w.len() as f64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -31,8 +21,9 @@ mod tests {
     fn hann_endpoints_and_gain() {
         let w = hann(8);
         assert!(w[0].abs() < 1e-12);
-        let g = coherent_gain(&w);
-        // Hann's coherent gain is 0.5.
+        // Hann's coherent gain (mean coefficient) is 0.5 — the value the
+        // spectrum normalization divides by (via the window-coefficient sum).
+        let g = w.iter().sum::<f64>() / w.len() as f64;
         assert!((g - 0.5).abs() < 1e-12);
     }
 }

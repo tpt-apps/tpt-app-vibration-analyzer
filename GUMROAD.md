@@ -24,8 +24,13 @@ that changes, update here too (and vice versa).
 
 ## File to upload
 
-Not built yet. Once packaged, this will be the Pro exe/zip produced by the
-app's `build.ps1 -Pro` (or equivalent) — see `todo.md`.
+`target\release\tpt-vibration-analyzer-pro.exe` — the Pro desktop shell,
+built by `./build.ps1 -Pro`. The web bundle (`dist/`, built with
+`--features pro`) is embedded in the exe at compile time, so the exe alone
+is the complete product: customers double-click it, it unpacks its own
+assets, and it runs offline in a WebView2 window. Zip the exe (or upload it
+directly — Gumroad accepts single files up to 4 GB) and note in the listing
+that it's a single portable executable.
 
 ## Product name
 
@@ -84,8 +89,11 @@ preinstalled on both — nothing extra to download.
 
 ## Cover image / thumbnail
 
-Not created yet. A screenshot of an FFT spectrum with a flagged fault
-signature is the most convincing cover once built. No stock/AI art.
+Take a screenshot of the app showing a flagged fault signature (analyze a
+recording with RPM + bearing numbers entered so the fault panel shows an
+alert pill next to the spectrum) — the built-in "Load demo recording"
+button plus a synthetic bearing-fault file gives exactly that shot. No
+stock/AI art.
 
 ## After publishing
 
