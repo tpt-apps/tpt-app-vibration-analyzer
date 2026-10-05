@@ -44,6 +44,7 @@ web-sys = { version = "0.3", features = [
     "Event",
     "EventTarget",
     "Blob",
+    "BlobPropertyBag",
     "Url",
     "HtmlAnchorElement",
     "MouseEvent",

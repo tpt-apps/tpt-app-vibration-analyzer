@@ -3,7 +3,7 @@
 
 use crate::decode::Recording;
 use crate::fft::{fft_in_place, next_pow2};
-use crate::window::{coherent_gain, hann};
+use crate::window::hann;
 
 /// Single-sided amplitude spectrum of a recording, in the recording's own
 /// engineering units (g or m/s² — the analysis is unit-agnostic).
@@ -70,7 +70,6 @@ pub fn stats(recording: &Recording) -> Stats {
 pub fn analyze(recording: &Recording, fft_size: usize) -> Spectrum {
     let size = next_pow2(fft_size.max(16));
     let win = hann(size);
-    let gain = coherent_gain(&win);
     let rate = recording.sample_rate.max(1.0);
 
     // Segment hop: 50% overlap.
@@ -89,15 +88,20 @@ pub fn analyze(recording: &Recording, fft_size: usize) -> Spectrum {
     let mut used = 0usize;
     let mut start = 0usize;
     while start + size <= recording.samples.len() && used < 240 {
-        acc_segment(&recording.samples[start..start + size], &win, gain, &mut power);
+        // Full segment: every window coefficient lands on real data.
+        acc_segment(&recording.samples[start..start + size], &win, size, &mut power);
         used += 1;
         start += stride;
     }
     if used == 0 {
-        // Zero-pad a short recording into one segment.
+        // Zero-pad a short recording into one segment. The normalization must
+        // only count the window coefficients that landed on real samples —
+        // dividing by the full window sum would halve (worse for shorter
+        // inputs) every amplitude.
+        let valid = recording.samples.len().min(size);
         let mut padded = recording.samples.clone();
         padded.resize(size, 0.0);
-        acc_segment(&padded, &win, gain, &mut power);
+        acc_segment(&padded, &win, valid, &mut power);
         used = 1;
     }
 
@@ -130,8 +134,12 @@ pub fn analyze(recording: &Recording, fft_size: usize) -> Spectrum {
     }
 }
 
-/// Windows one segment, FFTs it, and adds its power into `power`.
-fn acc_segment(seg: &[f64], win: &[f64], gain: f64, power: &mut [f64]) {
+/// Windows one segment, FFTs it, and adds its power into `power`. `valid`
+/// is how many of the segment's samples are real data (the rest are
+/// zero-padding): the amplitude normalization uses the window-coefficient
+/// sum over those only, so tones read in true engineering units regardless
+/// of padding.
+fn acc_segment(seg: &[f64], win: &[f64], valid: usize, power: &mut [f64]) {
     let n = win.len();
     let mut re = vec![0.0f64; n];
     let mut im = vec![0.0f64; n];
@@ -139,9 +147,7 @@ fn acc_segment(seg: &[f64], win: &[f64], gain: f64, power: &mut [f64]) {
         re[i] = seg[i] * win[i];
     }
     fft_in_place(&mut re, &mut im, false);
-    // Normalize by (N·coherent-gain) so tones read in true amplitude after
-    // the single-sided ×2 applied by the caller.
-    let norm = n as f64 * gain;
+    let norm: f64 = win[..valid.min(n)].iter().sum::<f64>().max(1e-12);
     for k in 0..power.len() {
         let m = (re[k] * re[k] + im[k] * im[k]).sqrt() / norm;
         power[k] += m * m;
@@ -269,6 +275,11 @@ mod tests {
         let spec = analyze(&rec, 4096);
         assert_eq!(spec.segments, 1);
         assert_eq!(spec.amp.len(), spec.fft_size / 2 + 1);
+        // Regression: zero-padded segments must still read true amplitude
+        // (normalization counts only window coefficients on real samples).
+        let ps = peaks(&spec, 10.0, 500.0, 3, 0.05);
+        assert!(!ps.is_empty());
+        assert!((ps[0].amp - 1.0).abs() < 0.05, "padded amplitude {} vs 1.0", ps[0].amp);
     }
 
     #[test]
